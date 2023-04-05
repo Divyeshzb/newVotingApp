@@ -1,15 +1,14 @@
 const webdriver = require('selenium-webdriver');
 const By = webdriver.By;
 const until = webdriver.until;
-const url = process.env.ROOST_SVC_URL;
-const server = process.env.SELENIUM_SERVER;
+
 
 const driver = new webdriver.Builder()
-  .usingServer(server)
+  .usingServer(`${SELENIUM_SERVER}`)
   .withCapabilities(webdriver.Capabilities.chrome())
   .build();
 
-driver.get(url);
+driver.get(`${ROOST_SVC_URL}`);
 
 driver.wait(until.titleContains('Election Commission Admin Portal'), 5000);
 
