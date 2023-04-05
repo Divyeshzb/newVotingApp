@@ -2,9 +2,11 @@ const { Builder, By, Key, until } = require('selenium-webdriver');
 const assert = require('assert');
 
 (async function example() {
-  let driver = await new Builder().forBrowser('chrome').build();
+  let driver = await new Builder().forBrowser("chrome")
+        .usingServer(`${SELENIUM_SERVER}`)
+        .build();
   try {
-    await driver.get('ROOST_SVC_URL');
+    await driver.get(`${ROOST_SVC_URL}`);
     
     const cardContents = await driver.findElements(By.className('cardContent'));
     for (const cardContent of cardContents) {
