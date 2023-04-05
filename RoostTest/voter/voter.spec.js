@@ -1,50 +1,34 @@
 const { Builder, By, Key, until } = require('selenium-webdriver');
-const fetch = require('node-fetch');
+const server = '$SELENIUM_SERVER';
+const url = '$ROOST_SVC_URL';
 
-(async function example() {
-  let driver = await new Builder()
-    .usingServer(process.env.SELENIUM_SERVER)
-    .forBrowser('chrome')
-    .build();
+async function runTest() {
+  let driver = await new Builder().usingServer(server).forBrowser('chrome').build();
   try {
-    await driver.get(process.env.ROOST_SVC_URL);
-    const cardContents = await driver.findElements(By.className('cardContent'));
-    for (const cardContent of cardContents) {
-      await cardContent.click();
-      await driver.wait(until.urlContains('/ballot'));
-      const interceptedRequest = await driver.executeScript(`
-        const fetch = window.fetch;
-        window.fetch = function (url, options) {
-          if (url.includes('/ballot') && options.method === 'POST') {
-            return fetch(url, options).then((response) => {
-              window.interceptedRequest = {
-                url,
-                options,
-                response: {
-                  status: response.status,
-                  body: response.json(),
-                },
-              };
-              return response;
-            });
-          }
-          return fetch(url, options);
-        };
-      `);
-      const interceptedRequestBody = await driver.executeScript('return window.interceptedRequest.options.body;');
-      const response = await fetch(interceptedRequest.url, interceptedRequest.options);
-      const responseBody = await response.json();
-      console.log(interceptedRequestBody, responseBody);
+    // Visit webpage
+    await driver.get(url);
+
+    // Get all elements with class 'cardContent'
+    const elements = await driver.findElements(By.className('cardContent'));
+
+    // For each element click on the component and intercept post api call with ballot endpoint in it.
+    for (let i = 0; i < elements.length; i++) {
+      await elements[i].click();
+      await driver.wait(until.urlContains('/ballot'), 10000);
     }
-    const showResultsButton = await driver.findElement(By.id('show-results-button'));
-    const isShowResultsButtonVisible = await showResultsButton.isDisplayed();
-    if (isShowResultsButtonVisible) {
+
+    // Check if "Show Results" button is visible in the page.
+    const showResultsButton = await driver.findElement(By.xpath("//button[contains(text(), 'Show Results')]"));
+    const isButtonVisible = await showResultsButton.isDisplayed();
+
+    // On click of "Show Results" button check the redirect url of current page contains '/voter/result'
+    if (isButtonVisible) {
       await showResultsButton.click();
-      await driver.wait(until.urlContains('/voter/result'));
-      const currentUrl = await driver.getCurrentUrl();
-      console.log(currentUrl);
+      await driver.wait(until.urlContains('/voter/result'), 10000);
     }
   } finally {
     await driver.quit();
   }
-})();
+}
+
+runTest();
