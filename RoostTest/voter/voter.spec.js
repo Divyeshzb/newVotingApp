@@ -1,35 +1,24 @@
-const {Builder, By, Key, until} = require('selenium-webdriver');
-const proxy = require('selenium-webdriver/proxy');
-
-const ROOST_SVC_URL = `${ROOST_SVC_URL}`;
-const SELENIUM_SERVER = `${SELENIUM_SERVER}`;
-const BALLOT_ENDPOINT = '/api/ballot';
-const RESULTS_ENDPOINT = '/voter/result';
+const { Builder, By, until } = require('selenium-webdriver');
 
 (async function example() {
-  let driver = await new Builder()
-    .forBrowser('chrome')
-    .usingServer(SELENIUM_SERVER)
-    .setProxy(proxy.manual({http: 'http://my.proxy.com:8080'}))
-    .build();
+  let driver = await new Builder().usingServer(`${SELENIUM_SERVER}`).forBrowser('chrome').build();
   try {
-    await driver.get(ROOST_SVC_URL);
+    await driver.get(`${ROOST_SVC_URL}`);
     let cardContents = await driver.findElements(By.className('cardContent'));
     for (let i = 0; i < cardContents.length; i++) {
       await cardContents[i].click();
-      await driver.wait(until.elementLocated(By.css('post')), 10000);
-      let postRequest = await driver.executeScript('return window.performance.getEntries()[0].name;');
-      if (postRequest.includes(BALLOT_ENDPOINT)) {
-        console.log('API call intercepted successfully');
-      }
+      await driver.wait(until.urlContains('/ballot'));
+      let logs = await driver.manage().logs().get('performance');
+      let ballotApiCalls = logs.filter(log => log.message.includes('ballot'));
+      console.log(ballotApiCalls);
     }
     let showResultsButton = await driver.findElement(By.id('showResultsButton'));
-    if (await showResultsButton.isDisplayed()) {
+    let isDisplayed = await showResultsButton.isDisplayed();
+    if (isDisplayed) {
       await showResultsButton.click();
+      await driver.wait(until.urlContains('/voter/result'));
       let currentUrl = await driver.getCurrentUrl();
-      if (currentUrl.includes(RESULTS_ENDPOINT)) {
-        console.log('Redirected to results page successfully');
-      }
+      console.log(currentUrl);
     }
   } finally {
     await driver.quit();
