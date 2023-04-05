@@ -1,34 +1,31 @@
-const { Builder, By, Key, until } = require('selenium-webdriver');
-const server = '$SELENIUM_SERVER';
-const url = '$ROOST_SVC_URL';
+const webdriver = require('selenium-webdriver');
+const assert = require('assert');
 
-async function runTest() {
-  let driver = await new Builder().usingServer(server).forBrowser('chrome').build();
-  try {
-    // Visit webpage
-    await driver.get(url);
+const roostSvcUrl = process.env.ROOST_SVC_URL;
+const seleniumServer = process.env.SELENIUM_SERVER;
 
-    // Get all elements with class 'cardContent'
-    const elements = await driver.findElements(By.className('cardContent'));
+const driver = new webdriver.Builder()
+    .usingServer(seleniumServer)
+    .withCapabilities(webdriver.Capabilities.chrome())
+    .build();
 
-    // For each element click on the component and intercept post api call with ballot endpoint in it.
-    for (let i = 0; i < elements.length; i++) {
-      await elements[i].click();
-      await driver.wait(until.urlContains('/ballot'), 10000);
-    }
+driver.get(roostSvcUrl);
 
-    // Check if "Show Results" button is visible in the page.
-    const showResultsButton = await driver.findElement(By.xpath("//button[contains(text(), 'Show Results')]"));
-    const isButtonVisible = await showResultsButton.isDisplayed();
+driver.findElements(webdriver.By.className('cardContent'))
+    .then(elements => {
+        elements.forEach(element => {
+            element.click();
+            driver.wait(webdriver.until.elementLocated(webdriver.By.css('post-api-call[endpoint="ballot"]')), 5000);
+        });
+    });
 
-    // On click of "Show Results" button check the redirect url of current page contains '/voter/result'
-    if (isButtonVisible) {
-      await showResultsButton.click();
-      await driver.wait(until.urlContains('/voter/result'), 10000);
-    }
-  } finally {
-    await driver.quit();
-  }
-}
+driver.findElements(webdriver.By.css('button.show-results'))
+    .then(elements => {
+        if (elements.length > 0) {
+            elements[0].click();
+            driver.wait(webdriver.until.urlContains('/voter/result'), 5000);
+            assert.ok(driver.getCurrentUrl().includes('/voter/result'));
+        }
+    });
 
-runTest();
+driver.quit();
